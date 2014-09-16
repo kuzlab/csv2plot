@@ -62,7 +62,8 @@ plot_data = [0.0] * (data_length)
 for x in range(data_length):
     plot_data[x] = abs(f_data[x + args.start_point] - 1.65)
 
-print(plot_data)
+if DEBUG_PRINT:
+    print(plot_data)
 
 import numpy as np
 #import matplotlib.pyplot as plt
@@ -81,17 +82,15 @@ def plot_average(ave_num):
     for j in range(0, data_length - ave1):
         temp = [0.0] * (ave1)
         for i in range(0, ave1):
-#           print(f_data[i + j])
             temp[i] = plot_data[i + j]
-#       print(temp)
         ave1_data[j] = np.average(temp)
     label = str(ave1) + "points average"
     x_num = np.arange(args.start_point, args.stop_point - ave1 + 1, 1)
     pylab.xlim(args.start_point, args.stop_point)    
     pylab.plot(x_num, ave1_data, label=label)
     pylab.legend()
-#print(ave1_data)
-
+    if DEBUG_PRINT:
+        print(ave1_data)
 
 #pylab.subplot(3, 1, 1)
 #plot_average(args.ave1)
@@ -146,7 +145,8 @@ period = csv_data[0][0]
 period = period[7:]
 
 div = float(period) # sec
-print(div)
+if DEBUG_PRINT:
+    print("div =", div)
 #len(data) - data_shift /10 = div
 
 sample_div = div/(len(f_data)/10)
@@ -178,7 +178,6 @@ if 0:
     pylab.subplot(3, 1, 2)
     label="fft"
     pylab.xlim(xmin=0)
-    #pylab.plot(sample_freq, sample_pow, label=label)
     pylab.semilogy(sample_freq, sample_pow, label=label)
     pylab.grid(True)
     pylab.legend()
@@ -200,56 +199,4 @@ pylab.savefig(outfile)
 pylab.show()
 
 
-#print(data[0])
-#print(data[1])
-#print(data[2][0])
-#print(data[3][0])
-#print(data[4][0])
-#print(data[5][0])
 
-
-
-#data = ['1', '2.0', '3', 'data']
-
-#test = data[0].strip().isdigit()
-#print(test)
-#test = data[1].strip().isdigit()
-#print(test)
-#test = data[2].strip().isdigit()
-#print(test)
-#test = data[3].strip().isdigit()
-#print(test)
-
-#def is_number(i):
-#    for v in range(i):
-#        print i[v].strip().isdigit()
-
-#print(is_number(data))
-
-
-#data = filter(lambda x:False not in [v.strip().isdigit() for v in x], data)
-#print(data)
-
-
-#data = [ v for v in csv_obj]
-#data_conved = [[int(elm) for elm in v] for v in data]
-#print(data_conved)
-
-
-
-#csv_obj = csv.render(open(args.infilename, "r"))
-#data = [ v for v in csv_obj]
-
-#data = [mol for mol in [[int(nucl) for nucl in atom if len(nucl) != 0 and nucl.strip().isdigit()] for atom in csv.reader(open("bad.csv", "r"))] if len(mol) != 0]
-#print(data)
-
-
-#>>>data = [ v for v in csv.reader(open("bad.csv", "r")) if len(v) != 0]
-#>>> print(data)
-
-
-#data = filter(lambda x:False not in [v.strip().isdigit() for v in x], data)
-#>>> print(data)
-
-#>>> data = map(lambda x:[ int(v) for v in x], data)
-#>>> print(data)
