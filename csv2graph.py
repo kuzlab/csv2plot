@@ -17,7 +17,11 @@ parser.add_argument("ave1", default = 10, type = int)
 parser.add_argument("ave2", default = 50, type = int)
 args = parser.parse_args()
 
+###### Debug setting ##########
 DEBUG_PRINT = 0
+total_plot_num = 4
+plot_count = 1
+###############################
 
 if DEBUG_PRINT:
     print(args.infilename, args.outextention, args.vol_average)
@@ -54,58 +58,80 @@ if len(f_data) < args.stop_point:
 
 data_length = args.stop_point - args.start_point
 
-average_center = 1.65
+average_center = float(args.vol_average)
 
 plot_data = [0.0] * (data_length)
-
-#for x in range(data_length):
 for x in range(data_length):
-    plot_data[x] = abs(f_data[x + args.start_point] - 1.65)
+    plot_data[x] = abs(f_data[x + args.start_point] - average_center)
 
 if DEBUG_PRINT:
     print(plot_data)
 
 import numpy as np
-#import matplotlib.pyplot as plt
 
 x_num = np.arange(args.start_point, args.stop_point, 1)
-
-#plt.plot(x, f_data)
 
 import pylab
 #pylab.plot(x_num, plot_data, label="abs")
 
-
-def plot_average(ave_num):
+def return_average(ave_num, data):
     ave1 = int(ave_num)
-    ave1_data = [0.0] * (data_length - ave1 +1)
-    for j in range(0, data_length - ave1):
+    length = args.stop_point - args.start_point
+    ave1_data = [0.0] * (length - ave1 +1)
+    for j in range(0, length - ave1):
         temp = [0.0] * (ave1)
         for i in range(0, ave1):
-            temp[i] = plot_data[i + j]
+            temp[i] = data[i + j]
         ave1_data[j] = np.average(temp)
-    label = str(ave1) + "points average"
-    x_num = np.arange(args.start_point, args.stop_point - ave1 + 1, 1)
-    pylab.xlim(args.start_point, args.stop_point)    
-    pylab.plot(x_num, ave1_data, label=label)
-    pylab.legend()
     if DEBUG_PRINT:
         print(ave1_data)
+    return ave1_data
+        
+def subplot_normal(x, y, plot_num_total, plot_order, labels):
+    pylab.subplot(int(plot_num_total), 1, int(plot_order))
+    pylab.xlim(x[0], x[len(x) - 1]) 
+    pylab.plot(x_num, y, label=labels[0])
+    pylab.xlabel(labels[1])
+    pylab.ylabel(labels[2])
+    pylab.legend()
 
-#pylab.subplot(3, 1, 1)
-#plot_average(args.ave1)
+def subplot_log(x, y, plot_num_total, plot_order, labels, y_minmax):
+    pylab.subplot(int(plot_num_total), 1, int(plot_order))
+    pylab.xlim(x[0], x[len(x) - 1])    
+    pylab.semilogy(x, y, label=labels[0])
+    pylab.xlabel(labels[1])
+    pylab.ylabel(labels[2])
+    pylab.ylim(float(y_minmax[0]), float(y_minmax[1]))
+    pylab.legend()
+
+
+temp = return_average(args.ave1, plot_data)
+#label = str(args.ave1) + "pt ave"
+labels = [str(args.ave1) + "pt ave", "num", "voltage"]
+x_num = np.arange(args.start_point, args.stop_point - args.ave1 + 1, 1)
+subplot_normal(x_num, temp, total_plot_num, plot_count, labels)
+plot_count = plot_count + 1
 #pylab.subplot(3, 1, 2)
 #plot_average(args.ave2)
 #pylab.subplot(3, 1, 3)
-ave = 1
-ave_data = [0.0] * (data_length - ave +1)
-for j in range(0, data_length - ave):
-    temp = [0.0] * (ave)
-    for i in range(0, ave):
-        temp[i] = plot_data[i + j] * plot_data[i + j]
-    ave_data[j] = np.average(temp)
-x_num = np.arange(args.start_point, args.stop_point - ave + 1, 1)
-label = str(ave) + " pt ave -> pow"
+
+if 0:
+    ave = 1
+    ave_data = [0.0] * (data_length - ave +1)
+    for j in range(0, data_length - ave):
+        temp = [0.0] * (ave)
+        for i in range(0, ave):
+            temp[i] = plot_data[i + j] * plot_data[i + j]
+        ave_data[j] = np.average(temp)
+    x_num = np.arange(args.start_point, args.stop_point - ave + 1, 1)
+
+pow_data = return_average(1, map(lambda x:plot_data[x] * plot_data[x], range(data_length)))
+#label = str(1) + " pt ave -> pow"
+x_num = np.arange(args.start_point, args.stop_point, 1)
+labels = [str(1) + " pt ave -> pow", "num", "pow"]
+y_min_max = [0.001, 2]
+subplot_log(x_num, pow_data, total_plot_num, plot_count, labels, y_min_max)
+plot_count = plot_count + 1
 
 if 0:
     pylab.subplot(3, 1, 1)
@@ -115,16 +141,17 @@ if 0:
 
 import scipy.signal
 
-def plot_lpf(N, Fc, Fs, x):
+def return_lpf(N, Fc, Fs, x, data, plot_num_total, plot_order):
+#    pylab.subplot(int(plot_num_total), 1, int(plot_order))
     h=scipy.signal.firwin( numtaps=N, cutoff=40, nyq=Fs/2)
-    y=scipy.signal.lfilter( h, 1.0, ave_data)
-    label = "LPF(N=" + str(N) + ',Fc=' + str(Fc) + ",Fs=" + str(Fs) +")"
+    y=scipy.signal.lfilter( h, 1.0, data)
+#    label = "LPF(N=" + str(N) + ',Fc=' + str(Fc) + ",Fs=" + str(Fs) +")"
 #    pylab.plot(x_num, y, label=label)
-    pylab.ylim(0.05, 2)
-    pylab.xlim(args.start_point, args.stop_point)
-    pylab.semilogy(x, y, label=label)
-    pylab.grid(True)
-    pylab.legend()
+#    pylab.ylim(0.05, 2)
+#    pylab.xlim(args.start_point, args.stop_point)
+#    pylab.semilogy(x, y, label=label)
+#    pylab.grid(True)
+#    pylab.legend()
     return y
     
 
@@ -132,8 +159,13 @@ N=100    # tap num
 Fc=50   # cut off
 Fs=3000 # sampling
 
-pylab.subplot(3, 1, 1)
-lpf_data = plot_lpf(N, Fc, Fs, x_num)
+#pylab.subplot(3, 1, 1)
+x_num = np.arange(args.start_point, args.stop_point, 1)
+labels = ["LPF(N=" + str(N) + ',Fc=' + str(Fc) + ",Fs=" + str(Fs) +")", "num", "pow"]
+lpf_data = return_lpf(N, Fc, Fs, x_num, pow_data, total_plot_num, plot_count)
+y_min_max = [0.05, 2]
+subplot_log(x_num, lpf_data, total_plot_num, plot_count, labels, y_min_max)
+plot_count = plot_count + 1
 
 
 import time
@@ -155,23 +187,30 @@ sound_speed = 1500 #m/sec
 x_time = x_num / sample_div         # sec
 x_distance = x_time * sound_speed / 2  # meter
 
+if 0:
+    pylab.subplot(3, 1, 2)
+    pylab.xlabel("time[sec]")
+    label="LPF vs time"
+    pylab.plot(x_time, lpf_data, label=label)
+    pylab.legend()
 
-pylab.subplot(3, 1, 2)
-pylab.xlabel("time[sec]")
-label="LPF vs time"
-pylab.plot(x_time, lpf_data, label=label)
-pylab.legend()
 
-pylab.subplot(3, 1, 3)
-pylab.xlabel("distance[m]")
-label="LPF vs distance"
-pylab.plot(x_distance, lpf_data, label=label)
-pylab.legend()
+#label="LPF vs distance"
+labels = ["LPF vs distance", "distance[m]", "pow"]
 
+if 0:
+    pylab.subplot(total_plot_num, 1, plot_count)
+    pylab.xlabel("distance[m]")
+    pylab.plot(x_distance, lpf_data, label=label)
+    pylab.legend()
+
+y_min_max = [0.05, 2]
+subplot_log(x_distance, lpf_data, total_plot_num, plot_count, labels, y_min_max)
+plot_count = plot_count + 1
 
 from scipy import fftpack
-sample_freq = fftpack.fftfreq(len(ave_data), 0.6)
-sample_sig = fftpack.fft(ave_data)
+sample_freq = fftpack.fftfreq(len(pow_data), 0.6)
+sample_sig = fftpack.fft(pow_data)
 sample_pow = abs(sample_sig)
 
 if 0:
@@ -183,7 +222,8 @@ if 0:
     pylab.legend()
 
 if 0:
-    pylab.subplot(3, 1, 3)
+    pylab.subplot(total_plot_num, 1, plot_count)
+    plot_count = plot_count + 1
     label="LPF->fft"
     pylab.xlim(xmin=0)
     sample_sig_lpf = fftpack.fft(lpf_data)
