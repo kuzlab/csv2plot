@@ -17,21 +17,16 @@ parser.add_argument("ave1", default = 10, type = int)
 parser.add_argument("ave2", default = 50, type = int)
 args = parser.parse_args()
 
-#print(args.quiet)
-#print(args.verbose)
-#print(args.hoge_fuga)
-print(args.infilename, args.outextention, args.vol_average)
+DEBUG_PRINT = 0
+
+if DEBUG_PRINT:
+    print(args.infilename, args.outextention, args.vol_average)
 
 import csv
 
 def data_loading_from_cvsfile(filename, data_shift_for_starting_point):
-#    infile = open(filename, 'rb')
-#    csv_obj = csv.reader(infile)
-#    with open(filename, "rU") as f:
-#        raw_data = map(lambda x:x.split("\t"), f.read().strip().split("\n"))
-
     raw_data = [ v for v in csv.reader(open(filename, "r")) if len(v) != 0]
-    if 0:
+    if DEBUG_PRINT:
         print(raw_data)
         for x in range(len(raw_data)):
             print(raw_data[x][0])
@@ -45,12 +40,12 @@ def data_loading_from_cvsfile(filename, data_shift_for_starting_point):
     
     return return_data, raw_data
 
-
     
 data_shift = 2
 f_data, csv_data = data_loading_from_cvsfile(args.infilename, data_shift)
 
-#print(f_data)
+if DEBUG_PRINT:
+    print(f_data)
 
 ######### DATA LOADING OK #############
 
