@@ -1,32 +1,33 @@
 #!/usr/bin/python
-
 import argparse
+import csv
+import numpy as np
+import pylab
+from scipy import fftpack
+import scipy.signal
+import time
 
-vol_average_default = 1.65
-
-parser = argparse.ArgumentParser()
-parser.add_argument("-v", "--verbose", action = "store_true", default = False)
-parser.add_argument("-q", "--quiet", action = "count", default = 0)
-parser.add_argument("-hf", "--hoge-fuga", default = "")
-parser.add_argument("infilename", default = '', type = str)
-parser.add_argument("outextention", default = 'figure.png', type = str)
-parser.add_argument("start_point", default = 0, type = int)
-parser.add_argument("stop_point", default = 10240, type = int)
-parser.add_argument("vol_average", default = vol_average_default, type = float)
-parser.add_argument("ave1", default = 10, type = int)
-parser.add_argument("ave2", default = 50, type = int)
-args = parser.parse_args()
-
-###### Debug setting ##########
+###### settings ##########
 DEBUG_PRINT = 0
+
 total_plot_num = 4
 plot_count = 1
+
+vol_average_default = 1.65  # 3.3V/2 = 1.65V
+
+data_shift = 2  # beggining of 2 rows skip (no data)
+
+# LPF parameters
+N=100    # tap num
+Fc=50   # cut off
+Fs=3000 # sampling
+
 ###############################
 
-if DEBUG_PRINT:
-    print(args.infilename, args.outextention, args.vol_average)
 
-import csv
+############################################################
+### definitions
+############################################################
 
 def data_loading_from_cvsfile(filename, data_shift_for_starting_point):
     raw_data = [ v for v in csv.reader(open(filename, "r")) if len(v) != 0]
@@ -43,36 +44,6 @@ def data_loading_from_cvsfile(filename, data_shift_for_starting_point):
         return_data[x] = float(raw_data[x + data_shift_for_starting_point][0])
     
     return return_data, raw_data
-
-    
-data_shift = 2
-f_data, csv_data = data_loading_from_cvsfile(args.infilename, data_shift)
-
-if DEBUG_PRINT:
-    print(f_data)
-
-######### DATA LOADING OK #############
-
-if len(f_data) < args.stop_point:
-    args.stop_point = len(f_data)
-
-data_length = args.stop_point - args.start_point
-
-average_center = float(args.vol_average)
-
-plot_data = [0.0] * (data_length)
-for x in range(data_length):
-    plot_data[x] = abs(f_data[x + args.start_point] - average_center)
-
-if DEBUG_PRINT:
-    print(plot_data)
-
-import numpy as np
-
-x_num = np.arange(args.start_point, args.stop_point, 1)
-
-import pylab
-#pylab.plot(x_num, plot_data, label="abs")
 
 def return_average(ave_num, data):
     ave1 = int(ave_num)
@@ -94,6 +65,7 @@ def subplot_normal(x, y, plot_num_total, plot_order, labels):
     pylab.xlabel(labels[1])
     pylab.ylabel(labels[2])
     pylab.legend()
+    pylab.grid(True)
 
 def subplot_log(x, y, plot_num_total, plot_order, labels, y_minmax):
     pylab.subplot(int(plot_num_total), 1, int(plot_order))
@@ -103,7 +75,53 @@ def subplot_log(x, y, plot_num_total, plot_order, labels, y_minmax):
     pylab.ylabel(labels[2])
     pylab.ylim(float(y_minmax[0]), float(y_minmax[1]))
     pylab.legend()
+    pylab.grid(True)
+    
+def return_lpf(N, Fc, Fs, x, data, plot_num_total, plot_order):
+    h=scipy.signal.firwin( numtaps=N, cutoff=40, nyq=Fs/2)
+    y=scipy.signal.lfilter( h, 1.0, data)
+    return y
+    
+############################################################
+### definitions end
+############################################################
 
+parser = argparse.ArgumentParser()
+parser.add_argument("-v", "--verbose", action = "store_true", default = False)
+parser.add_argument("-q", "--quiet", action = "count", default = 0)
+parser.add_argument("-hf", "--hoge-fuga", default = "")
+parser.add_argument("infilename", default = '', type = str)
+parser.add_argument("outextention", default = 'figure.png', type = str)
+parser.add_argument("start_point", default = 0, type = int)
+parser.add_argument("stop_point", default = 10240, type = int)
+parser.add_argument("vol_average", default = vol_average_default, type = float)
+parser.add_argument("ave1", default = 10, type = int)
+parser.add_argument("ave2", default = 50, type = int)
+args = parser.parse_args()
+
+if DEBUG_PRINT:
+    print(args.infilename, args.outextention, args.vol_average)
+    
+f_data, csv_data = data_loading_from_cvsfile(args.infilename, data_shift)
+
+if DEBUG_PRINT:
+    print(f_data)
+
+######### DATA LOADING OK #############
+
+if len(f_data) < args.stop_point:
+    args.stop_point = len(f_data)
+
+data_length = args.stop_point - args.start_point
+
+average_center = float(args.vol_average)
+
+plot_data = [0.0] * (data_length)
+for x in range(data_length):
+    plot_data[x] = abs(f_data[x + args.start_point] - average_center)
+
+if DEBUG_PRINT:
+    print(plot_data)
 
 temp = return_average(args.ave1, plot_data)
 labels = [str(args.ave1) + "pt ave", "num", "voltage"]
@@ -136,18 +154,6 @@ if 0:
     pylab.plot(x_num, ave_data, label=label)
     pylab.legend()
 
-import scipy.signal
-
-def return_lpf(N, Fc, Fs, x, data, plot_num_total, plot_order):
-    h=scipy.signal.firwin( numtaps=N, cutoff=40, nyq=Fs/2)
-    y=scipy.signal.lfilter( h, 1.0, data)
-    return y
-    
-
-N=100    # tap num
-Fc=50   # cut off
-Fs=3000 # sampling
-
 x_num = np.arange(args.start_point, args.stop_point, 1)
 labels = ["LPF(N=" + str(N) + ',Fc=' + str(Fc) + ",Fs=" + str(Fs) +")", "num", "pow"]
 lpf_data = return_lpf(N, Fc, Fs, x_num, pow_data, total_plot_num, plot_count)
@@ -155,25 +161,22 @@ y_min_max = [0.05, 2]
 subplot_log(x_num, lpf_data, total_plot_num, plot_count, labels, y_min_max)
 plot_count = plot_count + 1
 
-
-import time
-count = time.time()
-t = time.localtime()
-t_char = str(t.tm_year) + "-" + str(t.tm_mon) + "-" + str(t.tm_mday) + "_" + str(t.tm_hour) + "-" + str(t.tm_min) + "-" + str(t.tm_sec)
-
 period = csv_data[0][0]
 period = period[7:]
 
 div = float(period) # sec
+
 if DEBUG_PRINT:
-    print("div =", div)
-#len(data) - data_shift /10 = div
+    print("div = ", div) #len(data) - data_shift /10 = div
 
 sample_div = div/(len(f_data)/10)
 sound_speed = 1500 #m/sec
 
-x_time = x_num / sample_div         # sec
-x_distance = x_time * sound_speed / 2  # meter
+if DEBUG_PRINT:
+    print("sample = ", sample_div)
+
+x_time = x_num * sample_div         # sec
+x_distance = x_time * sound_speed * 100 / 2  # cm
 
 if 0:
     pylab.subplot(3, 1, 2)
@@ -183,12 +186,11 @@ if 0:
     pylab.legend()
 
 
-labels = ["LPF vs distance", "distance[m]", "pow"]
+labels = ["LPF vs distance", "distance[cm]", "pow"]
 y_min_max = [0.05, 2]
 subplot_log(x_distance, lpf_data, total_plot_num, plot_count, labels, y_min_max)
 plot_count = plot_count + 1
 
-from scipy import fftpack
 sample_freq = fftpack.fftfreq(len(pow_data), 0.6)
 sample_sig = fftpack.fft(pow_data)
 sample_pow = abs(sample_sig)
@@ -213,6 +215,9 @@ if 0:
     pylab.xlabel("Freq")
     pylab.legend()
 
+count = time.time()
+t = time.localtime()
+t_char = str(t.tm_year) + "-" + str(t.tm_mon) + "-" + str(t.tm_mday) + "_" + str(t.tm_hour) + "-" + str(t.tm_min) + "-" + str(t.tm_sec)
 
 outfile = args.infilename + "_" + args.outextention + "_" + t_char + ".png"
 pylab.savefig(outfile)
