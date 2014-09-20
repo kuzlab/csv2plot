@@ -64,7 +64,7 @@ def subplot_normal(x, y, plot_num_total, plot_order, labels):
     pylab.plot(x_num, y, label=labels[0])
     pylab.xlabel(labels[1])
     pylab.ylabel(labels[2])
-    pylab.legend()
+    pylab.legend(loc="lower right")
     pylab.grid(True)
 
 def subplot_log(x, y, plot_num_total, plot_order, labels, y_minmax):
@@ -74,12 +74,33 @@ def subplot_log(x, y, plot_num_total, plot_order, labels, y_minmax):
     pylab.xlabel(labels[1])
     pylab.ylabel(labels[2])
     pylab.ylim(float(y_minmax[0]), float(y_minmax[1]))
-    pylab.legend()
+    pylab.legend(loc="lower right")
     pylab.grid(True)
     
-def return_lpf(N, Fc, Fs, x, data, plot_num_total, plot_order):
-    h=scipy.signal.firwin( numtaps=N, cutoff=40, nyq=Fs/2)
+def return_lpf(N, Fc, Fs, x, data):
+#    h=scipy.signal.firwin( numtaps=N, cutoff=40, nyq=Fs/2)
+    h=scipy.signal.firwin( numtaps=N, cutoff=Fc, nyq=Fs/2)    
     y=scipy.signal.lfilter( h, 1.0, data)
+    return y
+    
+def return_hpf(N, Fc, Fs, x, data):
+    #h=scipy.signal.firwin( numtaps=N, cutoff=Fc, nyq=Fs/2)    
+    #y=scipy.signal.lfilter( h, 1.0, data)
+    h = scipy.signal.firwin(numtaps=N, cutoff=Fc, nyq=Fs/2, pass_zero=False)
+    y= scipy.signal.lfilter( h, 1.0, data)    
+    return y
+    
+def butter_bandpass(lowcut, highcut, fs, order=5):
+    nyq = 0.5 * fs
+    low = lowcut / nyq
+    high = highcut / nyq
+    b, a = scipy.signal.butter(order, [low, high], btype='band')
+    return b, a
+
+
+def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
+    b, a = butter_bandpass(lowcut, highcut, fs, order=order)
+    y = scipy.signal.lfilter(b, a, data)
     return y
     
 ############################################################
@@ -126,10 +147,8 @@ if DEBUG_PRINT:
 temp = return_average(args.ave1, plot_data)
 labels = [str(args.ave1) + "pt ave", "num", "voltage"]
 x_num = np.arange(args.start_point, args.stop_point - args.ave1 + 1, 1)
-subplot_normal(x_num, temp, total_plot_num, plot_count, labels)
-plot_count = plot_count + 1
-#pylab.subplot(3, 1, 2)
-#plot_average(args.ave2)
+#subplot_normal(x_num, temp, total_plot_num, plot_count, labels)
+#plot_count = plot_count + 1
 
 if 0:
     ave = 1
@@ -145,8 +164,8 @@ pow_data = return_average(1, map(lambda x:plot_data[x] * plot_data[x], range(dat
 x_num = np.arange(args.start_point, args.stop_point, 1)
 labels = [str(1) + " pt ave -> pow", "num", "pow"]
 y_min_max = [0.001, 2]
-subplot_log(x_num, pow_data, total_plot_num, plot_count, labels, y_min_max)
-plot_count = plot_count + 1
+#subplot_log(x_num, pow_data, total_plot_num, plot_count, labels, y_min_max)
+#plot_count = plot_count + 1
 
 if 0:
     pylab.subplot(3, 1, 1)
@@ -156,10 +175,10 @@ if 0:
 
 x_num = np.arange(args.start_point, args.stop_point, 1)
 labels = ["LPF(N=" + str(N) + ',Fc=' + str(Fc) + ",Fs=" + str(Fs) +")", "num", "pow"]
-lpf_data = return_lpf(N, Fc, Fs, x_num, pow_data, total_plot_num, plot_count)
+lpf_data = return_lpf(N, Fc, Fs, x_num, pow_data)
 y_min_max = [0.05, 2]
-subplot_log(x_num, lpf_data, total_plot_num, plot_count, labels, y_min_max)
-plot_count = plot_count + 1
+#subplot_log(x_num, lpf_data, total_plot_num, plot_count, labels, y_min_max)
+#plot_count = plot_count + 1
 
 period = csv_data[0][0]
 period = period[7:]
@@ -186,7 +205,7 @@ if 0:
     pylab.legend()
 
 
-labels = ["LPF vs distance", "distance[cm]", "pow"]
+labels = ["#1 pow -> abs(v-v0) -> LPF vs distance", "distance[cm]", "pow"]
 y_min_max = [0.05, 2]
 subplot_log(x_distance, lpf_data, total_plot_num, plot_count, labels, y_min_max)
 plot_count = plot_count + 1
@@ -214,6 +233,68 @@ if 0:
     pylab.grid(True)
     pylab.xlabel("Freq")
     pylab.legend()
+    
+    
+    
+##########################################################
+#######     2nd idea
+#######   raw data -> LPF -> HPF -> distance
+##########################################################    
+x_num = np.arange(args.start_point, args.stop_point, 1)
+ave1_f_data = return_average(1, f_data)
+
+labels = ["#2 crop data", "num", "voltage"]
+subplot_normal(x_num, ave1_f_data, total_plot_num, plot_count, labels)
+plot_count = plot_count + 1
+
+# LPF parameters
+N=100    # tap num
+#min_dimension = 0.001 # do not care under 1mm object
+min_dimension = 0.005 # do not care under 5mm 
+Fc = sound_speed / (min_dimension/2)   # cut off frequency
+Fs= 1.0 / sample_div    # sampling frequency
+
+
+lpf_f_data = return_lpf(N, Fc, Fs, x_num, ave1_f_data)
+labels = ["#2 LPF(N=" + str(N) + ',Fc=' + str(Fc/1000000) + "MHz,Fs=" + str(Fs/1000000) +"MHz)", "num", "voltage"]
+#y_min_max = [0.05, 2]
+subplot_normal(x_num, lpf_f_data, total_plot_num, plot_count, labels)#, y_min_max)
+plot_count = plot_count + 1
+
+
+## HPF disable
+if 0:
+    max_dimension = 0.10 # do not care over 10cm object
+    Fc_low = sound_speed / (max_dimension/2)   # cut off frequency
+    #hpf_lpf_f_data = return_hpf(N, Fc, Fs, x_num, lpf_f_data)
+
+    #Fc_low = 1*1000*1000/100
+    Fc_low = 10
+    Fc = Fs/2
+
+    #hpf_lpf_f_data = butter_bandpass_filter(ave1_f_data, Fc_low, Fc, Fs, order=5)
+    hpf_lpf_f_data = butter_bandpass_filter(lpf_f_data, Fc_low, Fc, Fs, order=5)
+
+    for x in range(len(hpf_lpf_f_data)):
+        if hpf_lpf_f_data[x] > 3:
+            hpf_lpf_f_data[x] = 3
+
+    labels = ["#2 BPF(N=" + str(N) + ',F1=' + str(Fc_low/1000) + 'k,F2=' + str(Fc/1000) + "k)", "num", "voltage"]
+    subplot_normal(x_num, hpf_lpf_f_data, total_plot_num, plot_count, labels)
+    plot_count = plot_count + 1
+    
+### try short period FFT + power sumation
+
+sample_freq = fftpack.fftfreq(len(lpf_f_data), 0.6)
+sample_sig = fftpack.fft(lpf_f_data)
+sample_pow = abs(sample_sig)
+
+pylab.subplot(total_plot_num, 1, plot_count)
+label="fft"
+pylab.xlim(xmin=0, xmax=0.1)
+pylab.semilogy(sample_freq, sample_pow, label=label)
+pylab.grid(True)
+pylab.legend()    
 
 count = time.time()
 t = time.localtime()
