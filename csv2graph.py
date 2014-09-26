@@ -67,7 +67,7 @@ def return_average(ave_num, data):
 def subplot_normal(x, y, plot_num_total, plot_order, labels):
     pylab.subplot(int(plot_num_total), 1, int(plot_order))
     pylab.xlim(x[0], x[len(x) - 1]) 
-    pylab.plot(x_num, y, label=labels[0])
+    pylab.plot(x, y, label=labels[0])
     pylab.xlabel(labels[1])
     pylab.ylabel(labels[2])
     pylab.legend(loc="lower right")
@@ -110,7 +110,7 @@ def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
     return y
     
 def power_sum_of_fft(data, min, max):
-    sample_freq = fftpack.fftfreq(len(data), 0.6)
+    sample_freq = fftpack.fftfreq(len(data))
     sample_sig = fftpack.fft(data)
     sample_pow = abs(sample_sig)
 #    print(sample_freq)
@@ -163,7 +163,7 @@ crop_f_data = [0.0] * (data_length)
 for i in range(data_length):
     crop_f_data[i] = f_data[i + args.start_point]
 
-if plot_mode == 0:
+if plot_mode == 0 or plot_mode == 3:
     temp = return_average(1, crop_f_data)
     labels = ["raw data", "num", "voltage"]
     x_num = np.arange(args.start_point, args.stop_point, 1)
@@ -199,13 +199,6 @@ if plot_mode == 0:
     subplot_normal(x_num, temp, total_plot_num, plot_count, labels)
     plot_count = plot_count + 1
     
-if plot_mode == 3:
-    temp = return_average(1, plot_data)    
-    labels = ["abs(v-v0)", "num", "voltage"]
-    x_num = np.arange(args.start_point, args.stop_point, 1)
-    subplot_normal(x_num, temp, total_plot_num, plot_count, labels)
-    plot_count = plot_count + 1
-
 if 0:
     ave = 1
     ave_data = [0.0] * (data_length - ave +1)
@@ -359,32 +352,54 @@ if plot_mode == 2:
     labels = ["LPF->" + str(fft_period) + "sampleFFT->t_dom", "num", "pow sum"]
     subplot_normal(x_num, fft_sum_data, total_plot_num, plot_count, labels)
     pylab.grid(True)
-
-
+    
+##########################################################
+#######     3rd idea
+#######   FFT -> short period FFT with freq limit
+##########################################################    
 if plot_mode == 3:  # plot_mode = 3 : short period FFT -> limited freq sum(BPF) -> time domain
+    #### normal fft
+    sample_freq = fftpack.fftfreq(len(crop_f_data))
+    sample_sig = fftpack.fft(crop_f_data)
+    sample_pow = abs(sample_sig)
+    labels=["FFT(all data)","Freq [*Fs]", "pow"]
+    pylab.subplot(total_plot_num, 1, plot_count)
+    pylab.xlim(xmin=0, xmax=0.5)
+    pylab.semilogy(sample_freq, sample_pow, label=labels[0])
+    pylab.grid(True)
+    pylab.legend()    
+    plot_count = plot_count + 1
+    #### short term fft
     fft_period = args.sfft_data_size
     fft_sum_data = [0.0] * (data_length - fft_period + 1)
     temp = [0.0] * (fft_period)
+    # all bandwidth
+    fft_range_min = 0.0
+    fft_range_max = 1.0
+    for i in range(len(crop_f_data) - fft_period + 1):
+        for j in range(fft_period):
+            temp[j] = crop_f_data[i + j]
+        fft_sum_data[i] = power_sum_of_fft(temp, fft_range_min, fft_range_max)
+    labels = ["s-fft(" + str(fft_period) + ", all bandwidth)", "distance(cm)", "pow sum"]
+    x_distance_fft = [0.0] * (data_length - fft_period + 1)
+    for i in (range(data_length - fft_period + 1)):
+        x_distance_fft[i] = x_distance[i]
+    subplot_normal(x_distance_fft, fft_sum_data, total_plot_num, plot_count, labels)
+    plot_count = plot_count + 1        
+    
+    fft_sum_data = [0.0] * (data_length - fft_period + 1)
     fft_range_min = args.sfft_sum_freq_min
     fft_range_max = args.sfft_sum_freq_max
     for i in range(len(crop_f_data) - fft_period + 1):
         for j in range(fft_period):
             temp[j] = crop_f_data[i + j]
         fft_sum_data[i] = power_sum_of_fft(temp, fft_range_min, fft_range_max)
-    x_num = np.arange(args.start_point, args.stop_point - fft_period + 1, 1)        
-    pylab.subplot(total_plot_num, 1, plot_count)
-    labels = ["sfft(" + str(fft_period) + ", " + str(fft_range_min) + "-" + str(fft_range_max) + ")", "num", "pow sum"]
-    subplot_normal(x_num, fft_sum_data, total_plot_num, plot_count, labels)
-    pylab.grid(True)
-    plot_count = plot_count + 1
-    pylab.subplot(total_plot_num, 1, plot_count)    
-    labels = ["sfft(" + str(fft_period) + ", " + str(fft_range_min) + "-" + str(fft_range_max) + ")", "distance(cm)", "pow sum"]
-    x_distance_fft = [0.0] * (data_length - fft_period)
-    for i in (range(data_length - fft_period)):
-        x_distance_fft[i] = x_distance[i]
-    print(x_distance_fft)
+#    x_num = np.arange(args.start_point, args.stop_point - fft_period + 1, 1)        
+#    labels = ["sfft(" + str(fft_period) + ", " + str(fft_range_min) + "-" + str(fft_range_max) + ")", "num", "pow sum"]
+#    subplot_normal(x_num, fft_sum_data, total_plot_num, plot_count, labels)
+#    plot_count = plot_count + 1
+    labels = ["s-fft(" + str(fft_period) + ", " + str(fft_range_min) + "-" + str(fft_range_max) + "*Fs)", "distance(cm)", "pow sum"]
     subplot_normal(x_distance_fft, fft_sum_data, total_plot_num, plot_count, labels)
-    pylab.grid(True)
     plot_count = plot_count + 1
 
 count = time.time()
