@@ -70,7 +70,7 @@ def subplot_normal(x, y, plot_num_total, plot_order, labels):
     pylab.plot(x, y, label=labels[0])
     pylab.xlabel(labels[1])
     pylab.ylabel(labels[2])
-    pylab.legend(loc="lower right")
+    pylab.legend(loc="upper right")
     pylab.grid(True)
 
 def subplot_log(x, y, plot_num_total, plot_order, labels, y_minmax):
@@ -80,7 +80,7 @@ def subplot_log(x, y, plot_num_total, plot_order, labels, y_minmax):
     pylab.xlabel(labels[1])
     pylab.ylabel(labels[2])
     pylab.ylim(float(y_minmax[0]), float(y_minmax[1]))
-    pylab.legend(loc="lower right")
+    pylab.legend(loc="upper right")
     pylab.grid(True)
     
 def return_lpf(N, Fc, Fs, x, data):
@@ -163,7 +163,7 @@ crop_f_data = [0.0] * (data_length)
 for i in range(data_length):
     crop_f_data[i] = f_data[i + args.start_point]
 
-if plot_mode == 0 or plot_mode == 3:
+if plot_mode == 0 or plot_mode == 1 or plot_mode == 3:
     temp = return_average(1, crop_f_data)
     labels = ["raw data", "num", "voltage"]
     x_num = np.arange(args.start_point, args.stop_point, 1)
@@ -183,6 +183,7 @@ if DEBUG_PRINT:
     print(plot_data)
 
 if plot_mode == 0:
+    print "plot mode = 0"    
     temp = return_average(1, plot_data)    
     labels = ["abs(v-v0)", "num", "voltage"]
     x_num = np.arange(args.start_point, args.stop_point, 1)
@@ -210,6 +211,7 @@ if 0:
     x_num = np.arange(args.start_point, args.stop_point - ave + 1, 1)
 
 if plot_mode == 1:
+    print "plot mode = 1"    
     pow_data = return_average(1, map(lambda x:plot_data[x] * plot_data[x], range(data_length)))
     x_num = np.arange(args.start_point, args.stop_point, 1)
     labels = [str(1) + " pt ave -> pow", "num", "pow"]
@@ -223,11 +225,11 @@ if 0:
     pylab.plot(x_num, ave_data, label=label)
     pylab.legend()
 
-if plot_mode == 1:
+if plot_mode == 1:    
     x_num = np.arange(args.start_point, args.stop_point, 1)
     labels = ["LPF(N=" + str(N) + ',Fc=' + str(Fc) + ",Fs=" + str(Fs) +")", "num", "pow"]
     lpf_data = return_lpf(N, Fc, Fs, x_num, pow_data)
-    y_min_max = [0.05, 2]
+    y_min_max = [0.001, 2]
     subplot_log(x_num, lpf_data, total_plot_num, plot_count, labels, y_min_max)
     plot_count = plot_count + 1
 
@@ -257,7 +259,7 @@ if 0:
 
 if plot_mode == 1:
     labels = ["pow -> abs(v-v0) -> LPF vs distance", "distance[cm]", "pow"]
-    y_min_max = [0.05, 2]
+    y_min_max = [0.005, 2]
     subplot_log(x_distance, lpf_data, total_plot_num, plot_count, labels, y_min_max)
     plot_count = plot_count + 1
 
@@ -290,7 +292,22 @@ if 0:
 #######     2nd idea
 #######   raw data -> LPF -> HPF -> distance
 ##########################################################
+
+# LPF parameters
+N=100    # tap num
+#min_dimension = 0.001 # do not care under 1mm object
+min_dimension = 0.010 # do not care under 10mm
+Fc = sound_speed / (min_dimension/2)   # cut off frequency
+Fs= 1.0 / sample_div    # sampling frequency
+
+print "Fs = " + str(Fs)
+
+Fc = 0.6 * 1000000
+
+print "Fc = " + str(Fc)
+
 if plot_mode == 2:
+    print "plot mode = 2"
     x_num = np.arange(args.start_point, args.stop_point, 1)
     ave1_f_data = return_average(1, f_data)
 
@@ -298,15 +315,14 @@ if plot_mode == 2:
     subplot_normal(x_num, ave1_f_data, total_plot_num, plot_count, labels)
     plot_count = plot_count + 1
 
-    # LPF parameters
-    N=100    # tap num
-    #min_dimension = 0.001 # do not care under 1mm object
-    min_dimension = 0.010 # do not care under 10mm
-    Fc = sound_speed / (min_dimension/2)   # cut off frequency
-    Fs= 1.0 / sample_div    # sampling frequency
-
     lpf_f_data = return_lpf(N, Fc, Fs, x_num, ave1_f_data)
     labels = ["LPF(N=" + str(N) + ',Fc=' + str(Fc/1000000) + "MHz,Fs=" + str(Fs/1000000) +"MHz)", "num", "voltage"]
+    #y_min_max = [0.05, 2]
+    subplot_normal(x_num, lpf_f_data, total_plot_num, plot_count, labels)#, y_min_max)
+    plot_count = plot_count + 1
+    
+    lpf_f_data = return_lpf(N, Fc, Fs, x_num, plot_data)
+    labels = ["abs -> LPF(N=" + str(N) + ',Fc=' + str(Fc/1000000) + "MHz,Fs=" + str(Fs/1000000) +"MHz)", "num", "voltage"]
     #y_min_max = [0.05, 2]
     subplot_normal(x_num, lpf_f_data, total_plot_num, plot_count, labels)#, y_min_max)
     plot_count = plot_count + 1
@@ -358,16 +374,23 @@ if plot_mode == 2:
 #######   FFT -> short period FFT with freq limit
 ##########################################################    
 if plot_mode == 3:  # plot_mode = 3 : short period FFT -> limited freq sum(BPF) -> time domain
+    print "plot mode = 3"
     #### normal fft
     sample_freq = fftpack.fftfreq(len(crop_f_data))
     sample_sig = fftpack.fft(crop_f_data)
     sample_pow = abs(sample_sig)
     labels=["FFT(all data)","Freq [*Fs]", "pow"]
-    pylab.subplot(total_plot_num, 1, plot_count)
-    pylab.xlim(xmin=0, xmax=0.5)
-    pylab.semilogy(sample_freq, sample_pow, label=labels[0])
+    pylab.subplot(total_plot_num, 1, plot_count)    
+#    pylab.xlim(xmin=0, xmax=0.5)
+#    pylab.semilogy(sample_freq, sample_pow, label=labels[0])
+    freq = [0.0] * len(sample_freq)
+    for i in range(len(sample_freq)):
+        freq[i] = sample_freq[i] * Fs   
+    pylab.xlim(xmin=0, xmax=0.5*Fs)
+    pylab.semilogy(freq, sample_pow, label=labels[0])
+    pylab.xlabel("Frequency[Hz]")    
     pylab.grid(True)
-    pylab.legend()    
+    pylab.legend(loc="upper right")    
     plot_count = plot_count + 1
     #### short term fft
     fft_period = args.sfft_data_size
@@ -388,8 +411,8 @@ if plot_mode == 3:  # plot_mode = 3 : short period FFT -> limited freq sum(BPF) 
     plot_count = plot_count + 1        
     
     fft_sum_data = [0.0] * (data_length - fft_period + 1)
-    fft_range_min = args.sfft_sum_freq_min
-    fft_range_max = args.sfft_sum_freq_max
+    fft_range_min = args.sfft_sum_freq_min * 1000000 / Fs 
+    fft_range_max = args.sfft_sum_freq_max * 1000000 / Fs
     for i in range(len(crop_f_data) - fft_period + 1):
         for j in range(fft_period):
             temp[j] = crop_f_data[i + j]
@@ -398,7 +421,7 @@ if plot_mode == 3:  # plot_mode = 3 : short period FFT -> limited freq sum(BPF) 
 #    labels = ["sfft(" + str(fft_period) + ", " + str(fft_range_min) + "-" + str(fft_range_max) + ")", "num", "pow sum"]
 #    subplot_normal(x_num, fft_sum_data, total_plot_num, plot_count, labels)
 #    plot_count = plot_count + 1
-    labels = ["s-fft(" + str(fft_period) + ", " + str(fft_range_min) + "-" + str(fft_range_max) + "*Fs)", "distance(cm)", "pow sum"]
+    labels = ["s-fft(" + str(fft_period) + ", " + str(args.sfft_sum_freq_min) + "-" + str(args.sfft_sum_freq_max) + "MHz)", "distance(cm)", "pow sum"]
     subplot_normal(x_distance_fft, fft_sum_data, total_plot_num, plot_count, labels)
     plot_count = plot_count + 1
 
